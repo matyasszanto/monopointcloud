@@ -1,7 +1,7 @@
 # monopointcloud
 A repository for the paper validating crowdsourced monocular pointcloud generation
 
-##Setup remote server and local python client
+## Setup remote server and local python client
 To start a remote server for carla and start agent from local computer:
 ### On the remote machine
 1. Install nvidia drivers on the server 
@@ -18,8 +18,8 @@ To start a remote server for carla and start agent from local computer:
 (Note: replace 0.9.13 with the installed version)<br>
 (Note: -RenderOffScreen starts the carla server in headless version)<br>
 For further information see: https://carla.readthedocs.io/en/latest/build_docker/
-6. `ssh -R 2000:localhost:2000 -R 2001:localhost:2001 -R 2002:localhost:2002 <user@local>`<br>
-###On the local machine
+6. `ssh -R 2000:localhost:2000 -R 2001:localhost:2001 -R 2002:localhost:2002 <user@local>`
+### On the local machine
 1. To install carla follow the steps described in: https://carla.readthedocs.io/en/latest/start_quickstart/#a-debian-carla-installation 
 2. `cd /opt/carla-simulator/PythonAPI/examples/`
 3. `python3 manual_control.py`
