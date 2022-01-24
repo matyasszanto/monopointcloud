@@ -122,11 +122,10 @@ def main():
         # receives an image. In this example we are saving the image to disk
         # converting the pixels to gray-scale.
 
-        # cc = carla.ColorConverter.LogarithmicDepth
-        # camera.listen(lambda image: image.save_to_disk(f'_out/{current_time}/%06d.png' % image.frame))
-        #
-        # print("let's wait 5 seconds")
-        # time.sleep(5)
+        camera.listen(lambda image: image.save_to_disk(f'_out/{current_time}/%06d.png' % image.frame))
+
+        print("let's wait 5 seconds")
+        time.sleep(5)
 
 
     finally:
