@@ -1,11 +1,5 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2019 Computer Vision Center (CVC) at the Universitat Autonoma de
-# Barcelona (UAB).
-#
-# This work is licensed under the terms of the MIT license.
-# For a copy, see <https://opensource.org/licenses/MIT>.
-
 """
 Test scenario:
 Set up map, weather, sun (Town02, Clear, Noon)
@@ -20,6 +14,7 @@ import glob
 import os
 import sys
 from datetime import datetime
+import queue
 
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -34,23 +29,68 @@ import carla
 import random
 import time
 
+class CarlaSyncMode(object):
+    """
+    Context manager to synchronize output from different sensors. Synchronous
+    mode is enabled as long as we are inside this context
+
+        with CarlaSyncMode(world, sensors) as sync_mode:
+            while True:
+                data = sync_mode.tick(timeout=1.0)
+
+    """
+
+    def __init__(self, world, *sensors, **kwargs):
+        self.world = world
+        self.sensors = sensors
+        self.frame = None
+        self.delta_seconds = 1.0 / kwargs.get('fps', 20)
+        self.timestamp = datetime.now()
+        self._queues = []
+        self._settings = None
+
+    def __enter__(self):
+        self._settings = self.world.get_settings()
+        self.frame = self.world.apply_settings(carla.WorldSettings(
+            no_rendering_mode=False,
+            synchronous_mode=True,
+            fixed_delta_seconds=self.delta_seconds))
+
+        def make_queue(register_event):
+            q = queue.Queue()
+            register_event(q.put)
+            self._queues.append(q)
+
+        make_queue(self.world.on_tick)
+        for sensor in self.sensors:
+            make_queue(sensor.listen)
+        return self
+
+    def tick(self, timeout):
+        self.frame = self.world.tick()
+        data = [self._retrieve_data(q, timeout) for q in self._queues]
+        assert all(x.frame == self.frame for x in data)
+        return data
+
+    def __exit__(self, *args, **kwargs):
+        self.world.apply_settings(self._settings)
+
+    def _retrieve_data(self, sensor_queue, timeout):
+        while True:
+            data = sensor_queue.get(timeout=timeout)
+            if data.frame == self.frame:
+                return data
+
 
 def main():
     actor_list = []
 
-    # create directory for exported images
-    current_time = datetime.now().strftime("%H_%M_%S")
-    os.makedirs(f"_out/{current_time}")
-
     try:
-        # First of all, we need to create the client that will send the requests
-        # to the simulator. Here we'll assume the simulator is accepting
-        # requests in the localhost at port 2000.
+        # connect to client
         client = carla.Client('localhost', 2000)
-        client.set_timeout(2.0)
+        client.set_timeout(10.0)
 
-        # Once we have a client we can retrieve the world that is currently
-        # running.
+        # retrieve world
         world = client.get_world()
 
         """
@@ -59,7 +99,6 @@ def main():
         Weather: clear
         Sun: noon
         """
-
         client.load_world('Town02')
         weather = world.get_weather()
         weather.sun_altitude_angle = 45
@@ -77,33 +116,18 @@ def main():
         weather.mie_scattering_scale = clear_weather[9]
         weather.rayleigh_scattering_scale = clear_weather[10]
 
-        # The world contains the list blueprints that we can use for adding new
-        # actors into the simulation.
-        blueprint_library = world.get_blueprint_library()
+        # Setting up and spawning vehicle
 
-        # Now let's filter all the blueprints of type 'vehicle' and choose one
-        # at random.
+        blueprint_library = world.get_blueprint_library()
         bp = world.get_blueprint_library().find('vehicle.tesla.model3')
 
-        # A blueprint contains the list of attributes that define a vehicle's
-        # instance, we can read them and modify some of them. For instance,
-        # let's randomize its color.
         if bp.has_attribute('color'):
             color = random.choice(bp.get_attribute('color').recommended_values)
             bp.set_attribute('color', color)
 
-        # Now we need to give an initial transform to the vehicle. We choose a
-        # random transform from the list of recommended spawn points of the map.
         transform = world.get_map().get_spawn_points()[0]
-
-        # So let's tell the world to spawn the vehicle.
         vehicle = world.spawn_actor(bp, transform)
 
-        # It is important to note that the actors we create won't be destroyed
-        # unless we call their "destroy" function. If we fail to call "destroy"
-        # they will stay in the simulation even after we quit the Python script.
-        # For that reason, we are storing all the actors we create so we can
-        # destroy them afterwards.
         actor_list.append(vehicle)
         print('created %s' % vehicle.type_id)
 
@@ -118,15 +142,28 @@ def main():
         actor_list.append(camera)
         print('created %s' % camera.type_id)
 
-        # Now we register the function that will be called each time the sensor
-        # receives an image. In this example we are saving the image to disk
-        # converting the pixels to gray-scale.
+        # create directory for exported images
+        current_time = datetime.now().strftime("%H_%M_%S")
+        os.makedirs(f"_out/{current_time}")
 
-        camera.listen(lambda image: image.save_to_disk(f'_out/{current_time}/%06d.png' % image.frame))
+        # turn lights green
+        for actor in world.get_actors():
+            if actor.type_id == "traffic.traffic_light":
+                actor.set_state(carla.TrafficLightState.Green)
 
-        print("let's wait 5 seconds")
-        time.sleep(5)
-
+        # instantiate CarlaSyncMode and start exporting images on ticks
+        print(f"before instantiation: {world.get_settings().fixed_delta_seconds}")
+        with CarlaSyncMode(world, camera, fps=30) as synchronizer:
+            tick = 0
+            print(f"after instantiation: {world.get_settings().fixed_delta_seconds}")
+            while True:
+                _, image = synchronizer.tick(timeout=2.0)
+                image.save_to_disk(path=f'_out/{current_time}/{tick}.png')
+                tick += 1
+                if tick > 120:
+                    break
+                if tick % 20 == 0:
+                    print(tick)
 
     finally:
 
@@ -134,6 +171,8 @@ def main():
         camera.destroy()
         client.apply_batch([carla.command.DestroyActor(x) for x in actor_list])
         print('done.')
+        elapsed_time = datetime.now() - synchronizer.timestamp
+        print(f"Time elapsed: {elapsed_time}")
 
 
 if __name__ == '__main__':
