@@ -102,22 +102,22 @@ def main():
 
         # But the city now is probably quite empty, let's add a few more
         # vehicles.
-        transform.location += carla.Location(x=40, y=-3.2)
-        transform.rotation.yaw = -180.0
-        for _ in range(0, 100):
-            transform.location.x += 8.0
-
-            bp = random.choice(blueprint_library.filter('vehicle'))
-
-            # This time we are using try_spawn_actor. If the spot is already
-            # occupied by another object, the function will return None.
-            npc = world.try_spawn_actor(bp, transform)
-            if npc is not None:
-                actor_list.append(npc)
-                npc.set_autopilot(True)
-                print('created %s' % npc.type_id)
-        print("OK, vehicles spawned, let's wait another 15 seconds")
-        time.sleep(15)
+        # transform.location += carla.Location(x=40, y=-3.2)
+        # transform.rotation.yaw = -180.0
+        # for _ in range(0, 100):
+        #     transform.location.x += 8.0
+        #
+        #     bp = random.choice(blueprint_library.filter('vehicle'))
+        #
+        #     # This time we are using try_spawn_actor. If the spot is already
+        #     # occupied by another object, the function will return None.
+        #     npc = world.try_spawn_actor(bp, transform)
+        #     if npc is not None:
+        #         actor_list.append(npc)
+        #         npc.set_autopilot(True)
+        #         print('created %s' % npc.type_id)
+        # print("OK, vehicles spawned, let's wait another 15 seconds")
+        # time.sleep(15)
 
     finally:
 
