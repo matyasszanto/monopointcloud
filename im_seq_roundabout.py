@@ -53,9 +53,11 @@ class CarlaSyncMode(object):
     def __enter__(self):
         self._settings = self.world.get_settings()
         self.frame = self.world.apply_settings(carla.WorldSettings(
-            no_rendering_mode=False,
-            synchronous_mode=True,
-            fixed_delta_seconds=self.delta_seconds))
+                                                    no_rendering_mode=False,
+                                                    synchronous_mode=True,
+                                                    fixed_delta_seconds=self.delta_seconds,
+                                                                   )
+                                               )
 
         def make_queue(register_event):
             q = queue.Queue()
@@ -86,11 +88,11 @@ class CarlaSyncMode(object):
 def main():
     actor_list = []
 
-    # set up number of runs
-    num_runs = 1
+    # set up number of runs per spawn position
+    num_runs = 4
 
     # set up length of single run
-    len_run = 60
+    len_run = 120
 
     # set map "Town03"
     map_string = "Town03"
@@ -110,11 +112,16 @@ def main():
 
         """
         Setting up map and weather:
-        Map: Town02 or gardonyiter
+        Map: Town03
         Weather: clear
         Sun: noon
         """
-        client.load_world(map_string)
+
+        # check if map need to be set, and set it to Town03
+        if str(world.get_map()) != "Map(name=Carla/Maps/Town03)":
+            client.load_world(map_string)
+
+        # set weather
         weather = world.get_weather()
         weather.sun_altitude_angle = 45
         weather.sun_azimuth_angle = 0
@@ -167,11 +174,11 @@ def main():
                                                )
                                )
 
-        spawn_positions.append(carla.Transform(location=carla.Location(x=-1.5237348079681396,
-                                                                       y=43.41181182861328,
+        spawn_positions.append(carla.Transform(location=carla.Location(x=1.487335205078125,
+                                                                       y=39.50163650512695,
                                                                        z=0.5,
                                                                        ),
-                                               rotation=carla.Rotation(yaw=-90,
+                                               rotation=carla.Rotation(yaw=-84,
                                                                        roll=0,
                                                                        pitch=0,
                                                                        ),
@@ -209,7 +216,7 @@ def main():
                 print('created %s' % camera.type_id)
 
                 # create directory for exported images
-                os.makedirs(f"_out/sequences/{current_time}/{j}_{i}")
+                os.makedirs(f"_out/sequences/{current_time}/{j}_{i+1}")
 
                 # turn lights green
                 for actor in world.get_actors():
@@ -223,7 +230,7 @@ def main():
                     # print(f"after instantiation: {world.get_settings().fixed_delta_seconds}")
                     while True:
                         _, image = synchronizer.tick(timeout=2.0)
-                        image.save_to_disk(path=f'_out/sequences/{current_time}/{j}_{i}/{tick}.png')
+                        image.save_to_disk(path=f'_out/sequences/{current_time}/{j}_{i+1}/{tick}.png')
                         tick += 1
                         if tick > len_run - 1:
                             break
@@ -233,7 +240,7 @@ def main():
                 print('destroying actors')
                 camera.destroy()
                 client.apply_batch([carla.command.DestroyActor(x) for x in actor_list])
-                print(f'Run {i} images exported to folder')
+                print(f'Run {i+1} images exported to folder')
 
     except:
         client.apply_batch([carla.command.DestroyActor(x) for x in actor_list])
