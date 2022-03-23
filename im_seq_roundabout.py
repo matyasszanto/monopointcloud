@@ -16,6 +16,7 @@ import sys
 from datetime import datetime
 import queue
 
+
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
@@ -25,10 +26,14 @@ except IndexError:
     pass
 
 import carla
+import cv2 as cv
+import numpy as np
 
 import random
 import time
 
+import image_converter
+import depth_treshold
 
 class CarlaSyncMode(object):
     """
@@ -86,13 +91,19 @@ class CarlaSyncMode(object):
 
 
 def main():
+    global client
     actor_list = []
+    sensor_list = []
+
+    # set camera resolution
+    im_height = 600
+    im_width = 800
 
     # set up number of runs per spawn position
-    num_runs = 4
+    num_runs = 1
 
     # set up length of single run
-    len_run = 120
+    len_run = 1
 
     # set map "Town03"
     map_string = "Town03"
@@ -117,7 +128,7 @@ def main():
         Sun: noon
         """
 
-        # check if map need to be set, and set it to Town03
+        # check if map setting is needed, and set it to Town03
         if str(world.get_map()) != "Map(name=Carla/Maps/Town03)":
             client.load_world(map_string)
 
@@ -141,6 +152,7 @@ def main():
         # rel_y = [-4, 0, 4]
         spawn_positions = []
 
+        # Adding spawn positions from here
         spawn_positions.append(carla.Transform(location=carla.Location(x=30.77940559387207,
                                                                        y=-4.182931900024414,
                                                                        z=0.5,
@@ -152,7 +164,7 @@ def main():
                                                )
                                )
 
-        spawn_positions.append(carla.Transform(location=carla.Location(x=-3.7383193969726562,
+        """spawn_positions.append(carla.Transform(location=carla.Location(x=-3.7383193969726562,
                                                                        y=-40.139705657958984,
                                                                        z=0.5,
                                                                        ),
@@ -183,7 +195,9 @@ def main():
                                                                        pitch=0,
                                                                        ),
                                                )
-                               )
+                               )"""
+        # Adding spawn positions until here
+
         j = 0
         for spawn_position in spawn_positions:
             j += 1
@@ -204,33 +218,61 @@ def main():
                 # Let's put the vehicle to drive around.
                 vehicle.set_autopilot(True)
 
-                # Let's add now an RGB camera attached to the vehicle. Note that the
-                # transform we give here is now relative to the vehicle.
+                # set up an RGB camera
                 camera_bp = blueprint_library.find('sensor.camera.rgb')
+
                 # x-forward, y-right, z-up
                 camera_y_rel = random.uniform(a=-2, b=2)
                 camera_z_rel = 2.4 + random.uniform(a=-1, b=1)
                 camera_transform = carla.Transform(carla.Location(x=1.5, y=camera_y_rel, z=camera_z_rel))
+
+                # set camera resolution
+                camera_bp.set_attribute('image_size_x', f'{im_width}')
+                camera_bp.set_attribute('image_size_y', f'{im_height}')
+
+                # spawn camera and fix to vehicle
                 camera = world.spawn_actor(camera_bp, camera_transform, attach_to=vehicle)
                 actor_list.append(camera)
-                print('created %s' % camera.type_id)
+                sensor_list.append(camera)
+                print(f'created {camera.type_id}')
 
-                # create directory for exported images
-                os.makedirs(f"_out/sequences/{current_time}/{j}_{i+1}")
+                # create a depth camera at the same location
+                depth_camera_bp = blueprint_library.find('sensor.camera.depth')
+                depth_camera = world.spawn_actor(depth_camera_bp, camera_transform, attach_to=vehicle)
+                actor_list.append(depth_camera)
+                sensor_list.append(depth_camera)
+                print(f'created {depth_camera.type_id}')
 
-                # turn lights green
+                # create directory for exported imagesű
+                export_basepath = f"_out/sequences/{current_time}/{j}_{i+1}"
+                os.makedirs(export_basepath)
+
+                # turn all traffic lights green
                 for actor in world.get_actors():
                     if actor.type_id == "traffic.traffic_light":
                         actor.set_state(carla.TrafficLightState.Green)
 
                 # instantiate CarlaSyncMode and start exporting images on ticks
                 # print(f"before instantiation: {world.get_settings().fixed_delta_seconds}")
-                with CarlaSyncMode(world, camera, fps=30) as synchronizer:
+                with CarlaSyncMode(world, *sensor_list, fps=30) as synchronizer:
                     tick = 0
                     # print(f"after instantiation: {world.get_settings().fixed_delta_seconds}")
                     while True:
-                        _, image = synchronizer.tick(timeout=2.0)
-                        image.save_to_disk(path=f'_out/sequences/{current_time}/{j}_{i+1}/{tick}.png')
+                        _, image, depth_as_rgb = synchronizer.tick(timeout=2.0)
+
+                        # mask image with depth
+                        depth = image_converter.depth_to_array(depth_as_rgb)
+                        depth *= 255
+                        mask = depth_treshold.create_mask(depth)
+
+
+                        #TODO mask depth image
+                        depth_mat = cv.add(img_np, 0)
+
+                        cv.imwrite(f'{export_basepath}/{tick}_depth.png', depth)
+
+                        image.save_to_disk(path=f'{export_basepath}/{tick}.png')
+
                         tick += 1
                         if tick > len_run - 1:
                             break
@@ -239,11 +281,13 @@ def main():
 
                 print('destroying actors')
                 camera.destroy()
+                depth_camera.destroy()
                 client.apply_batch([carla.command.DestroyActor(x) for x in actor_list])
                 print(f'Run {i+1} images exported to folder')
 
-    except:
+    except Exception as e:
         client.apply_batch([carla.command.DestroyActor(x) for x in actor_list])
+        print(e)
 
     finally:
         elapsed_time = datetime.now() - synchronizer.timestamp

@@ -22,13 +22,25 @@ def main():
     client = carla.Client('localhost', 2000)
     client.set_timeout(20.0)
 
-    # retrieve world
+    # restart map
+    client.load_world("Town03")
+
+    """# retrieve world
     world = client.get_world()
 
-    for actor in world.get_actors():
-        if actor.type_id == "vehicle.tesla.model3":
-            actor.destroy()
+    # setup counter
+    actors_destroyed = 0
 
+    # cleanup tesla model 3's and cameras
+    for actor in world.get_actors():
+        if actor.type_id == "vehicle.tesla.model3" or actor.type_id == "sensor.camera.rgb" or \
+                actor.type_id == "sensor.camera.depth":
+            actor.destroy()
+            actors_destroyed += 1
+            print(f"actors destroyed: {actors_destroyed}")
+
+    print(f"Done! Total number of actors destroyed: {actors_destroyed}")
+    """
 
 if __name__ == '__main__':
     main()
