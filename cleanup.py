@@ -6,7 +6,7 @@ import os
 import sys
 
 try:
-    sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
+    sys.path.append(glob.glob('/opt/carla-simulator/PythonAPI/carla/dist/carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
         sys.version_info.minor,
         'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
@@ -23,7 +23,10 @@ def main():
     client.set_timeout(20.0)
 
     # restart map
-    client.load_world("Town03")
+    world = client.get_world()
+    current_map = str(world.get_map())
+    current_map = current_map[current_map.find("=")+1:-1]
+    client.load_world(current_map)
 
     """# retrieve world
     world = client.get_world()
