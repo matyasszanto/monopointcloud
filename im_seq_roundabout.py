@@ -18,12 +18,18 @@ import queue
 
 
 try:
-    sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
+    sys.path.append(glob.glob('/opt/carla-simulator/PythonAPI/carla/dist/carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
         sys.version_info.minor,
         'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
 except IndexError:
-    pass
+    try:
+        sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
+        sys.version_info.major,
+        sys.version_info.minor,
+        'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
+    except IndexError:
+        pass
 
 import carla
 import cv2 as cv
@@ -100,10 +106,10 @@ def main():
     im_width = 800
 
     # set up number of runs per spawn position
-    num_runs = 1
+    num_runs = 2
 
     # set up length of single run
-    len_run = 1
+    len_run = 10
 
     # set map "Town03"
     map_string = "Town03"
@@ -113,7 +119,8 @@ def main():
     os.makedirs(f"_out/sequences/{current_time}")
     print(f"_out/sequences/{current_time}")
 
-    try:
+    # try:
+    while True:
         # connect to client
         client = carla.Client('localhost', 2000)
         client.set_timeout(20.0)
@@ -164,7 +171,7 @@ def main():
                                                )
                                )
 
-        """spawn_positions.append(carla.Transform(location=carla.Location(x=-3.7383193969726562,
+        spawn_positions.append(carla.Transform(location=carla.Location(x=-3.7383193969726562,
                                                                        y=-40.139705657958984,
                                                                        z=0.5,
                                                                        ),
@@ -195,13 +202,16 @@ def main():
                                                                        pitch=0,
                                                                        ),
                                                )
-                               )"""
+                               )
         # Adding spawn positions until here
 
         j = 0
         for spawn_position in spawn_positions:
             j += 1
             for i in range(num_runs):
+
+                sensor_list = []
+
                 # Setting up and spawning vehicle
                 blueprint_library = world.get_blueprint_library()
                 bp = world.get_blueprint_library().find('vehicle.tesla.model3')
@@ -265,12 +275,11 @@ def main():
                         depth *= 255
                         mask = depth_treshold.create_mask(depth)
 
-
-                        #TODO mask depth image
-                        depth_mat = cv.add(img_np, 0)
+                        image_Mat = image_converter.to_bgra_array(image)
+                        masked_rgb = cv.bitwise_and(image_Mat, image_Mat, mask=mask)
 
                         cv.imwrite(f'{export_basepath}/{tick}_depth.png', depth)
-
+                        cv.imwrite(f'{export_basepath}/{tick}_masked.png', masked_rgb)
                         image.save_to_disk(path=f'{export_basepath}/{tick}.png')
 
                         tick += 1
@@ -285,13 +294,14 @@ def main():
                 client.apply_batch([carla.command.DestroyActor(x) for x in actor_list])
                 print(f'Run {i+1} images exported to folder')
 
-    except Exception as e:
-        client.apply_batch([carla.command.DestroyActor(x) for x in actor_list])
-        print(e)
 
-    finally:
-        elapsed_time = datetime.now() - synchronizer.timestamp
-        print(f"Done. Total time elapsed: {elapsed_time}")
+    # except Exception as e:
+    #     client.apply_batch([carla.command.DestroyActor(x) for x in actor_list])
+    #     print(e)
+    #
+    # finally:
+    #     elapsed_time = datetime.now() - synchronizer.timestamp
+    #     print(f"Done. Total time elapsed: {elapsed_time}")
 
 
 if __name__ == '__main__':
