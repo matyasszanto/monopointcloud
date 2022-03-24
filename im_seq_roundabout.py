@@ -106,10 +106,10 @@ def main():
     im_width = 800
 
     # set up number of runs per spawn position
-    num_runs = 2
+    num_runs = 4
 
     # set up length of single run
-    len_run = 10
+    len_run = 120
 
     # set map "Town03"
     map_string = "Town03"
