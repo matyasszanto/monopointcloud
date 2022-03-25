@@ -101,12 +101,13 @@ def main():
     actor_list = []
     sensor_list = []
 
-    # set camera resolution
-    im_height = 600
-    im_width = 800
+    # set camera parameters
+    im_height = 720
+    im_width = 1280
+    camera_fov = 120
 
     # set up number of runs per spawn position
-    num_runs = 4
+    num_runs = 2
 
     # set up length of single run
     len_run = 120
@@ -115,12 +116,12 @@ def main():
     map_string = "Town03"
 
     # get current time and make new dir
-    current_time = datetime.now().strftime("%H_%M_%S")
+    current_time = datetime.now().strftime("%m_%d_%H_%M_%S")
     os.makedirs(f"_out/sequences/{current_time}")
     print(f"_out/sequences/{current_time}")
 
     # try:
-    while True:
+    for i in range(1):
         # connect to client
         client = carla.Client('localhost', 2000)
         client.set_timeout(20.0)
@@ -160,8 +161,8 @@ def main():
         spawn_positions = []
 
         # Adding spawn positions from here
-        spawn_positions.append(carla.Transform(location=carla.Location(x=30.77940559387207,
-                                                                       y=-4.182931900024414,
+        spawn_positions.append(carla.Transform(location=carla.Location(x=34.31974411010742,
+                                                                       y=-4.786858558654785,
                                                                        z=0.5,
                                                                        ),
                                                rotation=carla.Rotation(yaw=180,
@@ -171,7 +172,7 @@ def main():
                                                )
                                )
 
-        spawn_positions.append(carla.Transform(location=carla.Location(x=-3.7383193969726562,
+        """spawn_positions.append(carla.Transform(location=carla.Location(x=-3.7383193969726562,
                                                                        y=-40.139705657958984,
                                                                        z=0.5,
                                                                        ),
@@ -203,6 +204,7 @@ def main():
                                                                        ),
                                                )
                                )
+        """
         # Adding spawn positions until here
 
         j = 0
@@ -225,6 +227,7 @@ def main():
                 actor_list.append(vehicle)
                 print('created %s' % vehicle.type_id)
 
+                time.sleep(1)
                 # Let's put the vehicle to drive around.
                 vehicle.set_autopilot(True)
 
@@ -237,6 +240,7 @@ def main():
                 camera_transform = carla.Transform(carla.Location(x=1.5, y=camera_y_rel, z=camera_z_rel))
 
                 # set camera resolution
+                camera_bp.set_attribute("fov", f"{camera_fov}")
                 camera_bp.set_attribute('image_size_x', f'{im_width}')
                 camera_bp.set_attribute('image_size_y', f'{im_height}')
 
@@ -248,6 +252,11 @@ def main():
 
                 # create a depth camera at the same location
                 depth_camera_bp = blueprint_library.find('sensor.camera.depth')
+
+                depth_camera_bp.set_attribute("fov", f"{camera_fov}")
+                depth_camera_bp.set_attribute('image_size_x', f'{im_width}')
+                depth_camera_bp.set_attribute('image_size_y', f'{im_height}')
+
                 depth_camera = world.spawn_actor(depth_camera_bp, camera_transform, attach_to=vehicle)
                 actor_list.append(depth_camera)
                 sensor_list.append(depth_camera)
@@ -262,31 +271,39 @@ def main():
                     if actor.type_id == "traffic.traffic_light":
                         actor.set_state(carla.TrafficLightState.Green)
 
+                # create directories for image export
+                os.makedirs(f'{export_basepath}/masked_rgb/')
+                os.makedirs(f'{export_basepath}/depth')
+                os.makedirs(f'{export_basepath}/rgb/')
+
                 # instantiate CarlaSyncMode and start exporting images on ticks
                 # print(f"before instantiation: {world.get_settings().fixed_delta_seconds}")
-                with CarlaSyncMode(world, *sensor_list, fps=30) as synchronizer:
+                """with CarlaSyncMode(world, *sensor_list, fps=30) as synchronizer:
                     tick = 0
                     # print(f"after instantiation: {world.get_settings().fixed_delta_seconds}")
                     while True:
-                        _, image, depth_as_rgb = synchronizer.tick(timeout=2.0)
+                        if tick > 30:
+                            _, image, depth_as_rgb = synchronizer.tick(timeout=2.0)
 
-                        # mask image with depth
-                        depth = image_converter.depth_to_array(depth_as_rgb)
-                        depth *= 255
-                        mask = depth_treshold.create_mask(depth)
+                            # mask image with depth
+                            depth = image_converter.depth_to_array(depth_as_rgb)
+                            depth *= 255
+                            mask = depth_treshold.create_mask(depth)
 
-                        image_Mat = image_converter.to_bgra_array(image)
-                        masked_rgb = cv.bitwise_and(image_Mat, image_Mat, mask=mask)
+                            image_Mat = image_converter.to_bgra_array(image)
+                            masked_rgb = cv.bitwise_and(image_Mat, image_Mat, mask=mask)
 
-                        cv.imwrite(f'{export_basepath}/{tick}_depth.png', depth)
-                        cv.imwrite(f'{export_basepath}/{tick}_masked.png', masked_rgb)
-                        image.save_to_disk(path=f'{export_basepath}/{tick}.png')
+                            # export images
+                            cv.imwrite(f'{export_basepath}/depth/{tick}_depth.png', depth)
+
+                            cv.imwrite(f'{export_basepath}/masked_rgb/{tick}_masked.png', masked_rgb)
+
+                            image.save_to_disk(path=f'{export_basepath}/rgb/{tick}.png')
 
                         tick += 1
                         if tick > len_run - 1:
                             break
-                        # if tick % 10 == 0:
-                        #    print(tick)
+"""
 
                 print('destroying actors')
                 camera.destroy()
