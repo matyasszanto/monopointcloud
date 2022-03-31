@@ -46,14 +46,16 @@ def get_closest_spawn_point(sps, x, y):
     for i, sp in enumerate(sps):
         sp_x = sp.location.x
         if abs(sp_x - x) < max(x_candidates[:, 1]):
-            x_candidates[np.argmax(x_candidates[:, 1])] = np.array([i, sp_x])
+            x_candidates[np.argmax(x_candidates[:, 1])] = np.array([i, abs(sp_x - x)])
 
     i_closest_spawn_point = 0
 
-    y_min = np.Inf
-    for i_candidate in x_candidates[:, 0]:
-        if abs(sps[int(i_candidate)].location.y - y) < y_min:
-            i_closest_spawn_point = int(i)
+    y_diff_min = np.Inf
+    for j, i_candidate in enumerate(x_candidates[:, 0]):
+        sp_y_diff = abs(sps[int(i_candidate)].location.y - y)
+        if sp_y_diff < y_diff_min:
+            i_closest_spawn_point = int(x_candidates[j, 0])
+            y_diff_min = sp_y_diff
 
     return i_closest_spawn_point
 
@@ -76,8 +78,9 @@ def main():
         print(rotation_str)
         time.sleep(_SLEEP_TIME_)
         best_sp_index = get_closest_spawn_point(sps=spawn_points, x=t.location.x, y=t.location.y)
-        print(f"Closes spawn point (x, y, z) = {spawn_points[best_sp_index].location.x},"
+        print(f"Closest spawn point (x,y,z) =  {spawn_points[best_sp_index].location.x},"
               f" {spawn_points[best_sp_index].location.y} {spawn_points[best_sp_index].location.z}")
+        print(f"Closest spawn point index: {best_sp_index}")
 
 
 if __name__ == '__main__':
