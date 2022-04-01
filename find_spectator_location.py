@@ -77,10 +77,11 @@ def main():
         print(coordinate_str)
         print(rotation_str)
         time.sleep(_SLEEP_TIME_)
-        best_sp_index = get_closest_spawn_point(sps=spawn_points, x=t.location.x, y=t.location.y)
-        print(f"Closest spawn point (x,y,z) =  {spawn_points[best_sp_index].location.x},"
-              f" {spawn_points[best_sp_index].location.y} {spawn_points[best_sp_index].location.z}")
-        print(f"Closest spawn point index: {best_sp_index}")
+        if len(spawn_points) > 0:
+            best_sp_index = get_closest_spawn_point(sps=spawn_points, x=t.location.x, y=t.location.y)
+            print(f"Closest spawn point (x,y,z) =  {spawn_points[best_sp_index].location.x},"
+                  f" {spawn_points[best_sp_index].location.y} {spawn_points[best_sp_index].location.z}")
+            print(f"Closest spawn point index: {best_sp_index}")
 
 
 if __name__ == '__main__':
