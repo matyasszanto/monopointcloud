@@ -1,7 +1,7 @@
-#Importing individual maps
+# Importing individual maps
 This readme contains information on how externally defined opendrive maps can be imported into Carla simulator.
 
-##Requirements
+## Requirements
 1. Ubuntu 18.04 (_probably works on 20.04 as well, but not tested_)
 2. Carla version must be ≥0.9.12
 3. ~500GB free disk space
@@ -10,7 +10,7 @@ This readme contains information on how externally defined opendrive maps can be
       (A great tutorial: https://www.youtube.com/watch?v=Tteiw6MY4QI)
    2. _Don't forget to undo any changes after you're done with docker generation (see below)_
 
-##Steps
+## Steps
 Follow the instructions given in https://carla.readthedocs.io/en/latest/tuto_M_add_map_package/ <br>
 For the installation to work fine, you'll need to:
 1. Register to Unreal at:<br>
