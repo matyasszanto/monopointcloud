@@ -16,6 +16,7 @@ import sys
 from datetime import datetime
 import queue
 
+import numpy
 
 try:
     sys.path.append(glob.glob('/opt/carla-simulator/PythonAPI/carla/dist/carla-*%d.%d-%s.egg' % (
@@ -107,10 +108,10 @@ def main():
     camera_fov = 120
 
     # set up number of runs per spawn position
-    num_runs = 2
+    num_runs = 4
 
     # set up length of single run
-    len_run = 120
+    len_run = 240
 
     # set map "Town03"
     map_string = "Town03"
@@ -120,8 +121,7 @@ def main():
     os.makedirs(f"_out/sequences/{current_time}")
     print(f"_out/sequences/{current_time}")
 
-    # try:
-    for i in range(1):
+    try:
         # connect to client
         client = carla.Client('localhost', 2000)
         client.set_timeout(20.0)
@@ -158,10 +158,15 @@ def main():
         weather.rayleigh_scattering_scale = clear_weather[10]
 
         # rel_y = [-4, 0, 4]
-        spawn_positions = []
+        spawn_position = []
 
         # Adding spawn positions from here
-        spawn_positions.append(carla.Transform(location=carla.Location(x=34.31974411010742,
+        spawn_indices = [248,
+                         219,
+                         229,
+                         211,
+                         ]
+        """spawn_positions.append(carla.Transform(location=carla.Location(x=34.31974411010742,
                                                                        y=-4.786858558654785,
                                                                        z=0.5,
                                                                        ),
@@ -172,7 +177,7 @@ def main():
                                                )
                                )
 
-        """spawn_positions.append(carla.Transform(location=carla.Location(x=-3.7383193969726562,
+        spawn_positions.append(carla.Transform(location=carla.Location(x=-3.7383193969726562,
                                                                        y=-40.139705657958984,
                                                                        z=0.5,
                                                                        ),
@@ -208,7 +213,7 @@ def main():
         # Adding spawn positions until here
 
         j = 0
-        for spawn_position in spawn_positions:
+        for spawn_position in spawn_indices:
             j += 1
             for i in range(num_runs):
 
@@ -222,7 +227,8 @@ def main():
                     color = random.choice(bp.get_attribute('color').recommended_values)
                     bp.set_attribute('color', color)
 
-                vehicle = world.spawn_actor(bp, spawn_position)
+                spawn_points = world.get_map().get_spawn_points()
+                vehicle = world.spawn_actor(bp, spawn_points[spawn_position])
 
                 actor_list.append(vehicle)
                 print('created %s' % vehicle.type_id)
@@ -262,7 +268,19 @@ def main():
                 sensor_list.append(depth_camera)
                 print(f'created {depth_camera.type_id}')
 
-                # create directory for exported imagesű
+                # create a segmentation camera at the same location
+                semseg_camera_bp = blueprint_library.find('sensor.camera.semantic_segmentation')
+
+                semseg_camera_bp.set_attribute("fov", f"{camera_fov}")
+                semseg_camera_bp.set_attribute('image_size_x', f'{im_width}')
+                semseg_camera_bp.set_attribute('image_size_y', f'{im_height}')
+
+                semseg_camera = world.spawn_actor(semseg_camera_bp, camera_transform, attach_to=vehicle)
+                actor_list.append(semseg_camera)
+                sensor_list.append(semseg_camera)
+                print(f'created {semseg_camera.type_id}')
+
+                # create directory for exported images
                 export_basepath = f"_out/sequences/{current_time}/{j}_{i+1}"
                 os.makedirs(export_basepath)
 
@@ -275,35 +293,69 @@ def main():
                 os.makedirs(f'{export_basepath}/masked_rgb/')
                 os.makedirs(f'{export_basepath}/depth')
                 os.makedirs(f'{export_basepath}/rgb/')
+                os.makedirs(f'{export_basepath}/semseg/')
+
+                camera_positions = []
 
                 # instantiate CarlaSyncMode and start exporting images on ticks
                 # print(f"before instantiation: {world.get_settings().fixed_delta_seconds}")
-                """with CarlaSyncMode(world, *sensor_list, fps=30) as synchronizer:
+                with CarlaSyncMode(world, *sensor_list, fps=30) as synchronizer:
                     tick = 0
                     # print(f"after instantiation: {world.get_settings().fixed_delta_seconds}")
                     while True:
-                        if tick > 30:
-                            _, image, depth_as_rgb = synchronizer.tick(timeout=2.0)
+                        _, image, depth_as_rgb, semseg_raw = synchronizer.tick(timeout=2.0)
 
-                            # mask image with depth
-                            depth = image_converter.depth_to_array(depth_as_rgb)
-                            depth *= 255
-                            mask = depth_treshold.create_mask(depth)
+                        if tick < 100:
+                            tick += 1
+                            continue
 
-                            image_Mat = image_converter.to_bgra_array(image)
-                            masked_rgb = cv.bitwise_and(image_Mat, image_Mat, mask=mask)
+                        # mask image with depth
+                        depth = image_converter.depth_to_array(depth_as_rgb)
+                        depth *= 255
+                        depth_mask = depth_treshold.create_mask(depth)
 
-                            # export images
-                            cv.imwrite(f'{export_basepath}/depth/{tick}_depth.png', depth)
+                        depth_mat = image_converter.to_bgra_array(image)
+                        masked_rgb = cv.bitwise_and(depth_mat, depth_mat, mask=depth_mask)
 
-                            cv.imwrite(f'{export_basepath}/masked_rgb/{tick}_masked.png', masked_rgb)
+                        # export images
+                        # depth
+                        cv.imwrite(f'{export_basepath}/depth/{tick}_depth.png', depth)
 
-                            image.save_to_disk(path=f'{export_basepath}/rgb/{tick}.png')
+                        # depth masked
+                        cv.imwrite(f'{export_basepath}/masked_rgb/{tick}_masked.png', masked_rgb)
+
+                        # rgb
+                        image.save_to_disk(path=f'{export_basepath}/rgb/{tick}.png')
+
+                        # semseg
+                        semseg_mask = image_converter.labels_to_cityscapes_palette(semseg_raw)
+
+                        semseg_mask[semseg_mask == 0] = np.Inf
+                        semseg_mask[semseg_mask != np.Inf] = 0
+                        semseg_mask[semseg_mask == np.Inf] = 1
+                        semseg_mask_2 = np.stack((semseg_mask[:, :, 0],
+                                                  semseg_mask[:, :, 0],
+                                                  semseg_mask[:, :, 0],
+                                                  semseg_mask[:, :, 0]),
+                                                 axis=2,
+                                                 )
+
+                        final_masked_rgb = np.multiply(masked_rgb, semseg_mask_2)
+
+                        cv.imwrite(f'{export_basepath}/semseg/{tick}.png', final_masked_rgb)
+
+                        camera_positions.append([camera.get_transform().location.x,
+                                                 camera.get_transform().location.y,
+                                                 camera.get_transform().location.z,
+                                                 camera.get_transform().rotation.roll,
+                                                 camera.get_transform().rotation.yaw,
+                                                 camera.get_transform().rotation.pitch])
 
                         tick += 1
+
                         if tick > len_run - 1:
+                            numpy.savetxt(fname=f'{export_basepath}/camera.txt', X=camera_positions)
                             break
-"""
 
                 print('destroying actors')
                 camera.destroy()
@@ -311,14 +363,13 @@ def main():
                 client.apply_batch([carla.command.DestroyActor(x) for x in actor_list])
                 print(f'Run {i+1} images exported to folder')
 
+    except Exception as e:
+        client.apply_batch([carla.command.DestroyActor(x) for x in actor_list])
+        print(e)
 
-    # except Exception as e:
-    #     client.apply_batch([carla.command.DestroyActor(x) for x in actor_list])
-    #     print(e)
-    #
-    # finally:
-    #     elapsed_time = datetime.now() - synchronizer.timestamp
-    #     print(f"Done. Total time elapsed: {elapsed_time}")
+    finally:
+        elapsed_time = datetime.now() - synchronizer.timestamp
+        print(f"Done. Total time elapsed: {elapsed_time}")
 
 
 if __name__ == '__main__':
