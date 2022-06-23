@@ -97,6 +97,20 @@ class CarlaSyncMode(object):
                 return data
 
 
+def export_lidar_data(image):
+    points = np.frombuffer(image.raw_data, dtype=np.dtype('f4'))
+    points = np.reshape(points, (int(points.shape[0] / 4), 4))
+    lidar_data = np.array(points[:, :2])
+    # lidar_data *= min(self.hud.dim) / (2.0 * self.lidar_range)
+    # lidar_data += (0.5 * self.hud.dim[0], 0.5 * self.hud.dim[1])
+    lidar_data = np.fabs(lidar_data)  # pylint: disable=E1111
+    lidar_data = lidar_data.astype(np.int32)
+    lidar_data = np.reshape(lidar_data, (-1, 2))
+    lidar_img_size = (1080, 1080, 3)
+    lidar_img = np.zeros((lidar_img_size), dtype=np.uint8)
+    lidar_img[tuple(lidar_data.T)] = (255, 255, 255)
+
+
 def main():
     global client
     actor_list = []
@@ -108,13 +122,16 @@ def main():
     camera_fov = 120
 
     # set up number of runs per spawn position
-    num_runs = 4
+    num_runs = 1
 
     # set up length of single run
-    len_run = 240
+    len_run = 800
 
     # set map "Town03"
     map_string = "Town03"
+
+    # set simulation fps
+    fps = 30
 
     # get current time and make new dir
     current_time = datetime.now().strftime("%m_%d_%H_%M_%S")
@@ -161,11 +178,12 @@ def main():
         spawn_position = []
 
         # Adding spawn positions from here
-        spawn_indices = [248,
-                         219,
-                         229,
-                         211,
-                         ]
+        spawn_indices = [
+            # 248,
+            # 219,
+            # 229,
+            211,
+            ]
         """spawn_positions.append(carla.Transform(location=carla.Location(x=34.31974411010742,
                                                                        y=-4.786858558654785,
                                                                        z=0.5,
@@ -280,6 +298,20 @@ def main():
                 sensor_list.append(semseg_camera)
                 print(f'created {semseg_camera.type_id}')
 
+                # create lidar sensor higher up and with raycasting
+                lidar_bp = blueprint_library.find('sensor.lidar.ray_cast')
+
+                # set attributes
+                lidar_bp.set_attribute('range', f'{float(50)}')
+                lidar_bp.set_attribute('upper_fov', f'{float(30)}')
+                lidar_bp.set_attribute('lower_fov', f'{float(-30)}')
+                lidar_bp.set_attribute('rotation_frequency', f'{fps}')
+
+                # set location
+                lidar_transform = carla.Transform(carla.Location(1.5, 0, 3),
+                                                  carla.Rotation(0, 0, 0),
+                                                  )
+
                 # create directory for exported images
                 export_basepath = f"_out/sequences/{current_time}/{j}_{i+1}"
                 os.makedirs(export_basepath)
@@ -294,18 +326,23 @@ def main():
                 os.makedirs(f'{export_basepath}/depth')
                 os.makedirs(f'{export_basepath}/rgb/')
                 os.makedirs(f'{export_basepath}/semseg/')
+                os.makedirs(f'{export_basepath}/pointcloud/')
 
                 camera_positions = []
 
                 # instantiate CarlaSyncMode and start exporting images on ticks
-                # print(f"before instantiation: {world.get_settings().fixed_delta_seconds}")
-                with CarlaSyncMode(world, *sensor_list, fps=30) as synchronizer:
+                with CarlaSyncMode(world, *sensor_list, fps=fps) as synchronizer:
                     tick = 0
-                    # print(f"after instantiation: {world.get_settings().fixed_delta_seconds}")
                     while True:
+                        # LIDAR loop
+                        lidar_sensor = world.spawn_actor(lidar_bp, lidar_transform, attach_to=vehicle)
+                        # synchronizer.sensors.append(lidar_sensor)
+                        lidar_sensor.listen(lambda lidar_measurement: lidar_measurement.save_to_disk(f'{export_basepath}/pointcloud/{lidar_measurement.frame_number}.ply'))
+
                         _, image, depth_as_rgb, semseg_raw = synchronizer.tick(timeout=2.0)
 
-                        if tick < 100:
+                        lidar_sensor.destroy()
+                        if tick < 800:
                             tick += 1
                             continue
 
