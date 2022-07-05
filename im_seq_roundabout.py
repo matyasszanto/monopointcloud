@@ -26,9 +26,10 @@ try:
 except IndexError:
     try:
         sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
-        sys.version_info.major,
-        sys.version_info.minor,
-        'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
+            sys.version_info.major,
+            sys.version_info.minor,
+            'win-amd64' if os.name == 'nt' else 'linux-x86_64'
+        ))[0])
     except IndexError:
         pass
 
@@ -41,6 +42,7 @@ import time
 
 import image_converter
 import depth_treshold
+
 
 class CarlaSyncMode(object):
     """
@@ -64,10 +66,9 @@ class CarlaSyncMode(object):
 
     def __enter__(self):
         self._settings = self.world.get_settings()
-        self.frame = self.world.apply_settings(carla.WorldSettings(
-                                                    no_rendering_mode=False,
-                                                    synchronous_mode=True,
-                                                    fixed_delta_seconds=self.delta_seconds,
+        self.frame = self.world.apply_settings(carla.WorldSettings(no_rendering_mode=False,
+                                                                   synchronous_mode=True,
+                                                                   fixed_delta_seconds=self.delta_seconds,
                                                                    )
                                                )
 
@@ -293,6 +294,7 @@ def main():
                 os.makedirs(f'{export_basepath}/masked_rgb/')
                 os.makedirs(f'{export_basepath}/depth')
                 os.makedirs(f'{export_basepath}/rgb/')
+                os.makedirs(f'{export_basepath}/semseg_masked/')
                 os.makedirs(f'{export_basepath}/semseg/')
 
                 camera_positions = []
@@ -319,6 +321,7 @@ def main():
 
                         # export images
                         # depth
+                        depth = image_converter.depth_to_logarithmic_grayscale(depth_as_rgb)
                         cv.imwrite(f'{export_basepath}/depth/{tick}_depth.png', depth)
 
                         # depth masked
@@ -328,8 +331,8 @@ def main():
                         image.save_to_disk(path=f'{export_basepath}/rgb/{tick}.png')
 
                         # semseg
-                        semseg_mask = image_converter.labels_to_cityscapes_palette(semseg_raw)
-
+                        semseg_orig = image_converter.labels_to_cityscapes_palette(semseg_raw)
+                        semseg_mask = np.copy(semseg_orig)
                         semseg_mask[semseg_mask == 0] = np.Inf
                         semseg_mask[semseg_mask != np.Inf] = 0
                         semseg_mask[semseg_mask == np.Inf] = 1
@@ -342,7 +345,8 @@ def main():
 
                         final_masked_rgb = np.multiply(masked_rgb, semseg_mask_2)
 
-                        cv.imwrite(f'{export_basepath}/semseg/{tick}.png', final_masked_rgb)
+                        cv.imwrite(f'{export_basepath}/semseg_masked/{tick}_semseg_masked.png', final_masked_rgb)
+                        cv.imwrite(f'{export_basepath}/semseg/{tick}_semseg.png', semseg_mask)
 
                         camera_positions.append([camera.get_transform().location.x,
                                                  camera.get_transform().location.y,
