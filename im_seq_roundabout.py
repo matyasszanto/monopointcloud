@@ -304,6 +304,13 @@ def main():
                 with CarlaSyncMode(world, *sensor_list, fps=30) as synchronizer:
                     tick = 0
                     # print(f"after instantiation: {world.get_settings().fixed_delta_seconds}")
+                    focal = im_width / (2 * np.tan(camera_fov * np.pi / 360))
+                    camera_positions.append(focal)
+
+                    im_height = 720
+                    im_width = 1280
+                    camera_fov = 120
+
                     while True:
                         _, image, depth_as_rgb, semseg_raw = synchronizer.tick(timeout=2.0)
 
