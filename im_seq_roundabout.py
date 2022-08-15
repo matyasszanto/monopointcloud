@@ -109,10 +109,10 @@ def main():
     camera_fov = 120
 
     # set up number of runs per spawn position
-    num_runs = 4
+    num_runs = 1
 
     # set up length of single run
-    len_run = 240
+    len_run = 101
 
     # set map "Town03"
     map_string = "Town03"
@@ -353,7 +353,7 @@ def main():
                         final_masked_rgb = np.multiply(masked_rgb, semseg_mask_2)
 
                         cv.imwrite(f'{export_basepath}/semseg_masked/{tick}_semseg_masked.png', final_masked_rgb)
-                        cv.imwrite(f'{export_basepath}/semseg/{tick}_semseg.png', semseg_mask)
+                        cv.imwrite(f'{export_basepath}/semseg/{tick}_semseg.png', semseg_orig)
 
                         camera_positions.append([camera.get_transform().location.x,
                                                  camera.get_transform().location.y,
