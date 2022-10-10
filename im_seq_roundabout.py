@@ -101,7 +101,6 @@ class CarlaSyncMode(object):
 def main():
     global client
     actor_list = []
-    sensor_list = []
 
     # set camera parameters
     im_height = 720
@@ -109,10 +108,10 @@ def main():
     camera_fov = 120
 
     # set up number of runs per spawn position
-    num_runs = 1
+    num_runs = 4
 
     # set up length of single run
-    len_run = 101
+    len_run = 240
 
     # set map "Town03"
     map_string = "Town03"
@@ -304,12 +303,10 @@ def main():
                 with CarlaSyncMode(world, *sensor_list, fps=30) as synchronizer:
                     tick = 0
                     # print(f"after instantiation: {world.get_settings().fixed_delta_seconds}")
-                    focal = im_width / (2 * np.tan(camera_fov * np.pi / 360))
-                    camera_positions.append(focal)
 
-                    im_height = 720
-                    im_width = 1280
-                    camera_fov = 120
+                    # print focal length to focal.txt
+                    focal = im_width / (2 * np.tan(camera_fov * np.pi / 360))
+                    np.savetxt(fname=f'{export_basepath}/focal.txt', X=np.array([focal]))
 
                     while True:
                         _, image, depth_as_rgb, semseg_raw = synchronizer.tick(timeout=2.0)
@@ -365,7 +362,7 @@ def main():
                         tick += 1
 
                         if tick > len_run - 1:
-                            numpy.savetxt(fname=f'{export_basepath}/camera.txt', X=camera_positions)
+                            np.savetxt(fname=f'{export_basepath}/camera.txt', X=camera_positions)
                             break
 
                 print('destroying actors')
