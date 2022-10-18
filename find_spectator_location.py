@@ -74,13 +74,13 @@ def main():
         # coordinate_str = "(x,y) = ({},{})".format(t.location.x, t.location.y)
         coordinate_str = f"(x,y,z) = ({t.location.x},{t.location.y},{t.location.z})"
         rotation_str = f"(pitch, yaw, roll) = ({t.rotation.pitch}, {t.rotation.yaw}, {t.rotation.roll})"
-        print(coordinate_str)
-        print(rotation_str)
+        # print(coordinate_str)
+        # print(rotation_str)
         time.sleep(_SLEEP_TIME_)
         if len(spawn_points) > 0:
             best_sp_index = get_closest_spawn_point(sps=spawn_points, x=t.location.x, y=t.location.y)
-            print(f"Closest spawn point (x,y,z) =  {spawn_points[best_sp_index].location.x},"
-                  f" {spawn_points[best_sp_index].location.y} {spawn_points[best_sp_index].location.z}")
+            # print(f"Closest spawn point (x,y,z) =  {spawn_points[best_sp_index].location.x},"
+            #       f" {spawn_points[best_sp_index].location.y} {spawn_points[best_sp_index].location.z}")
             print(f"Closest spawn point index: {best_sp_index}")
 
 
