@@ -16,8 +16,6 @@ import sys
 from datetime import datetime
 import queue
 
-import numpy
-
 try:
     sys.path.append(glob.glob('/opt/carla-simulator/PythonAPI/carla/dist/carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
@@ -316,14 +314,16 @@ def main():
                             tick += 1
                             continue
 
-                        # mask image with depth
+                        # get image depth
                         depth = image_converter.depth_to_array(depth_as_rgb)
-
+                        depth_sixteen = depth * 65535
+                        depth_sixteen = depth_sixteen.astype(np.uint16)
                         # write 16 bit depth
-                        cv.imwrite(f'{export_basepath}/depth_16/{tick}_depth.png', depth)
+                        cv.imwrite(f'{export_basepath}/depth_16/{tick}_depth.png', depth_sixteen)
 
-                        depth *= 255 # 8 bit conversion
+                        depth *= 255    # 8 bit conversion
 
+                        # mask with image depth
                         depth_mask = depth_treshold.create_mask(depth)
 
                         depth_mat = image_converter.to_bgra_array(image)
@@ -388,3 +388,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
