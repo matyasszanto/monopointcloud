@@ -292,6 +292,7 @@ def main():
                 # create directories for image export
                 os.makedirs(f'{export_basepath}/masked_rgb/')
                 os.makedirs(f'{export_basepath}/depth')
+                os.makedirs(f'{export_basepath}/depth_16')
                 os.makedirs(f'{export_basepath}/rgb/')
                 os.makedirs(f'{export_basepath}/semseg_masked/')
                 os.makedirs(f'{export_basepath}/semseg/')
@@ -317,7 +318,12 @@ def main():
 
                         # mask image with depth
                         depth = image_converter.depth_to_array(depth_as_rgb)
-                        depth *= 255
+
+                        # write 16 bit depth
+                        cv.imwrite(f'{export_basepath}/depth_16/{tick}_depth.png', depth)
+
+                        depth *= 255 # 8 bit conversion
+
                         depth_mask = depth_treshold.create_mask(depth)
 
                         depth_mat = image_converter.to_bgra_array(image)
