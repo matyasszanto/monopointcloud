@@ -339,8 +339,9 @@ def main():
                         # depth masked
                         cv.imwrite(f'{export_basepath}/masked_rgb/{tick}_masked.png', masked_rgb)
 
-                        # rgb
-                        image.save_to_disk(path=f'{export_basepath}/rgb/{tick}.png')
+                        # color image
+                        bgr = image_converter.to_bgra_array(image)
+                        cv.imwrite(f'{export_basepath}/rgb/{tick}.png', bgr)
 
                         # semseg
                         semseg_orig = image_converter.labels_to_cityscapes_palette(semseg_raw)
@@ -384,7 +385,7 @@ def main():
         print(e)
 
     finally:
-        elapsed_time = datetime.now() - synchronizer.timestamp
+        elapsed_time = datetime.now() - current_time
         print(f"Done. Total time elapsed: {elapsed_time}")
 
 
