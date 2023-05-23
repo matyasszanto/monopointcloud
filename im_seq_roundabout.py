@@ -106,10 +106,10 @@ def main():
     camera_fov = 120
 
     # set up number of runs per spawn position
-    num_runs = 4
+    num_runs = 6
 
     # set up length of single run
-    len_run = 240
+    len_run = 200
 
     # set map "Town03"
     map_string = "Town03"
@@ -161,7 +161,7 @@ def main():
         # Adding spawn positions from here
         spawn_indices = [248,
                          219,
-                         229,
+                         257,
                          211,
                          ]
         """spawn_positions.append(carla.Transform(location=carla.Location(x=34.31974411010742,
@@ -307,10 +307,12 @@ def main():
                     focal = im_width / (2 * np.tan(camera_fov * np.pi / 360))
                     np.savetxt(fname=f'{export_basepath}/focal.txt', X=np.array([focal]))
 
+                    recording_start = 100 if spawn_position == 257 else 50
+
                     while True:
                         _, image, depth_as_rgb, semseg_raw = synchronizer.tick(timeout=2.0)
 
-                        if tick < 100:
+                        if tick < recording_start:
                             tick += 1
                             continue
 
