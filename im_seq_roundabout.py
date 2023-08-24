@@ -115,7 +115,8 @@ def main():
     map_string = "Town03"
 
     # get current time and make new dir
-    current_time = datetime.now().strftime("%m_%d_%H_%M_%S")
+    start_time = datetime.now()
+    current_time = start_time.strftime("%m_%d_%H_%M_%S")
     os.makedirs(f"_out/sequences/{current_time}")
     print(f"_out/sequences/{current_time}")
 
@@ -159,11 +160,12 @@ def main():
         spawn_position = []
 
         # Adding spawn positions from here
-        spawn_indices = [248,
-                         219,
-                         257,
-                         211,
-                         ]
+        spawn_indices = [
+            248,
+            219,
+            257,
+            211,
+        ]
         """spawn_positions.append(carla.Transform(location=carla.Location(x=34.31974411010742,
                                                                        y=-4.786858558654785,
                                                                        z=0.5,
@@ -213,6 +215,7 @@ def main():
         j = 0
         for spawn_position in spawn_indices:
             j += 1
+            len_run = len_run if spawn_position != 257 else len_run + 100
             for i in range(num_runs):
 
                 sensor_list = []
@@ -385,7 +388,7 @@ def main():
         print(e)
 
     finally:
-        elapsed_time = datetime.now() - current_time
+        elapsed_time = datetime.now() - start_time
         print(f"Done. Total time elapsed: {elapsed_time}")
 
 
