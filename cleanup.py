@@ -32,7 +32,8 @@ def main():
     world = client.get_world()
     current_map = str(world.get_map())
     current_map = current_map[current_map.find("=")+1:-1]
-    client.load_world(current_map)
+    # client.load_world(current_map)
+    client.load_world("Town03")
 
     """# retrieve world
     world = client.get_world()
